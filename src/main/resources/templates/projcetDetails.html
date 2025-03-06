@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Status</title>
+	<link rel="icon" href="/infinite.png" type="image/x-icon">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 20px;
+            padding: 20px;
+        }
+
+        .project-header {
+            font-size: 28px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .utilization, .service-status, .log-download {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: center;
+        }
+
+        th {
+            background-color: #007bff;
+            color: white;
+        }
+
+        .utilization p {
+            font-size: 16px;
+            font-weight: bold;
+            padding: 8px;
+            border-radius: 5px;
+            display: inline-block;
+            width: 100%;
+            text-align: center;
+        }
+
+        .low-utilization {
+            background-color: #28a745;
+            color: white;
+        }
+
+        .medium-utilization {
+            background-color: #ffc107;
+            color: black;
+        }
+
+        .high-utilization {
+            background-color: #dc3545;
+            color: white;
+        }
+
+        .status-up {
+            color: green;
+            font-weight: bold;
+        }
+
+        .status-down {
+            color: red;
+            font-weight: bold;
+        }
+
+        .log-download button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .log-download button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="project-header" id="project-name">Loading project...</div>
+
+    <div class="utilization" id="utilization">
+        <p>Loading system utilization...</p>
+    </div>
+
+    <div class="service-status" id="service-status">
+        <p>Loading service status...</p>
+    </div>
+
+    <div class="log-download" id="log-download">
+        <p>Loading log download section...</p>
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const projectName = urlParams.get('projectName') || "Unknown Project";
+
+        document.getElementById('project-name').textContent = projectName;
+
+        fetch(`/monitor/project-data?projectName=${encodeURIComponent(projectName)}`)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('project-name').textContent = data.serverName;
+
+                function getUtilizationClass(value) {
+                    if (value < 75) return "low-utilization";
+                    if (value >= 75 && value <= 85) return "medium-utilization";
+                    return "high-utilization";
+                }
+
+                const utilization = `
+                    <p class="${getUtilizationClass(data.cpuUsagePercentage)}">CPU Usage: ${data.cpuUsagePercentage}%</p>
+                    <p class="${getUtilizationClass(data.memoryUsagePercentage)}">Memory Usage: ${data.memoryUsagePercentage}%</p>
+                    <p class="${getUtilizationClass(data.ramUsagePercentage)}">RAM Usage: ${data.ramUsagePercentage}%</p>
+                `;
+                document.getElementById('utilization').innerHTML = utilization;
+
+                let serviceStatusHtml = "<table><tr><th>Service Name</th><th>Status</th><th>Port</th></tr>";
+                data.serverPortList.forEach(service => {
+                    let statusClass = service.status.toLowerCase() === "up" ? "status-up" : "status-down";
+                    serviceStatusHtml += `
+                        <tr>
+                            <td>${service.serviceName}</td>
+                            <td class="${statusClass}">${service.status}</td>
+                            <td>${service.port}</td>
+                        </tr>
+                    `;
+                });
+                serviceStatusHtml += "</table>";
+                document.getElementById('service-status').innerHTML = serviceStatusHtml;
+
+                let logDownloadHtml = "<p>Log files available for download:</p><ul>";
+                data.logFileDownload.forEach(log => {
+                    logDownloadHtml += `<li>${log} <button onclick="downloadLog('${data.serverName}', '${log}')">Download</button></li>`;
+                });
+                logDownloadHtml += "</ul>";
+                document.getElementById('log-download').innerHTML = logDownloadHtml;
+            })
+            .catch(error => {
+                console.error('Error fetching project data:', error);
+                document.getElementById('project-name').textContent = "Failed to load project data.";
+            });
+
+        function downloadLog(serverName, logName) {
+            fetch(`/monitor/downloadLogApi?serverName=${encodeURIComponent(serverName)}&logName=${encodeURIComponent(logName)}`)
+                .then(response => response.text())
+                .then(message => {
+                    alert(message);
+                })
+                .catch(error => {
+                    alert("Error downloading log file.");
+                    console.error("Download error:", error);
+                });
+        }
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Download Log File</title>
+    <style>
+        /* Simple styling for the message popup */
+        .popup {
+            display: none;
+            padding: 20px;
+            border: 1px solid #ccc;
+            margin-top: 20px;
+            font-size: 16px;
+            border-radius: 5px;
+        }
+
+        /* Success message styling */
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border-color: #c3e6cb;
+        }
+
+        /* Failure message styling */
+        .failure {
+            background-color: #f8d7da;
+            color: #721c24;
+            border-color: #f5c6cb;
+        }
+
+        /* Styling for the download button */
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <h1>Log File Download</h1>
+    
+    <!-- Message display area -->
+    <div>
+        <p id="serverMessage"></p>
+    </div>
+
+    <!-- Download button (anchor-like behavior) -->
+    <button onclick="downloadLogFile()">Download Log File</button>
+
+    <!-- Popup message -->
+    <div id="popup" class="popup"></div>
+
+    <script>
+        // Function to handle the file download and show success/failure message
+        function downloadLogFile() {
+            fetch('/monitor/downloadLogApi', {
+                method: 'GET',
+            })
+            .then(response => response.text()) // Get the server response
+            .then(data => {
+                // Check the response message for success/failure
+                const messageDiv = document.getElementById('popup');
+                if (data.includes("successfully")) {
+                    // Success message
+                    messageDiv.style.display = 'block';
+                    messageDiv.className = 'popup success';  // Apply success styling
+                    messageDiv.innerText = data;
+                } else {
+                    // Failure message
+                    messageDiv.style.display = 'block';
+                    messageDiv.className = 'popup failure';  // Apply failure styling
+                    messageDiv.innerText = data;
+                }
+
+                // Trigger file download (no browser download prompt shown)
+                const link = document.createElement('a');
+                link.href = '/monitor/downloadLogFile';  // Backend should handle the actual download logic
+                link.download = 'logfile.txt';  // Optional: specify the download filename
+                link.click();  // Trigger the download without showing the browser download prompt
+            })
+            .catch(error => {
+                // Handle errors
+                const messageDiv = document.getElementById('popup');
+                messageDiv.style.display = 'block';
+                messageDiv.className = 'popup failure';  // Apply failure styling
+                messageDiv.innerText = "Failed to download log file.";
+            });
+        }
+    </script>
+</body>
+</html>

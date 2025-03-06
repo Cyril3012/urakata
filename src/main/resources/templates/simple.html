@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>System Usage Monitoring</title>	
+	<link rel="icon" href="/devops.png" type="image/x-icon">
+    <style>
+        /* Basic Table Styling */
+        table {
+            width: 80%;
+            margin: auto;
+            border-collapse: collapse;
+            font-family: Arial, sans-serif;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: center;
+        }
+
+        th {
+            background-color: #ccc3f8;
+            color: white;
+            font-weight: bold;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+
+        .status-high {
+            color: red;
+            font-weight: bold;
+        }
+
+        .status-medium {
+            color: orange;
+            font-weight: bold;
+        }
+
+        .status-normal {
+            color: green;
+            font-weight: bold;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            table {
+                width: 95%;
+                font-size: 14px;
+            }
+
+            th, td {
+                padding: 8px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            table {
+                width: 100%;
+                font-size: 12px;
+            }
+
+            th, td {
+                padding: 6px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1 style="text-align: center;">System Usage Monitoring</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Server Name</th>
+                <th>IP Address</th>
+                <th>Memory Usage</th>
+                <th>CPU Utilization</th>
+                <th>RAM Utilization</th>
+            </tr>
+        </thead>
+        <tbody id="usage-table-body">
+            <!-- The table body will be dynamically updated by JavaScript -->
+        </tbody>
+    </table>
+
+    <script>
+        // Function to determine CSS class based on percentage
+        function getStatusClass(percentage) {
+            if (percentage > 85) {
+                return 'status-high';
+            } else if (percentage > 70) {
+                return 'status-medium';
+            } else {
+                return 'status-normal';
+            }
+        }
+
+        // Function to refresh the table content
+        function refreshUsageTable() {
+            document.getElementById('usage-table-body').innerHTML = `
+                <tr>
+                    <td colspan="5" class="text-center">
+                        <div class="spinner"></div>
+                    </td>
+                </tr>
+            `;
+
+            fetch('/monitor/system-usage') // Call your backend endpoint for JSON data
+                .then(response => response.json())
+                .then(data => {
+                    const tableBody = document.getElementById('usage-table-body');
+                    tableBody.innerHTML = ''; // Clear the current table content
+
+                    // Populate the table with updated data
+                    data.forEach(server => {
+                        const memoryClass = getStatusClass(server.memoryUsagePercentage);
+                        const cpuClass = getStatusClass(server.cpuUsagePercentage);
+                        const ramClass = getStatusClass(server.ramUsagePercentage);
+
+                        const row = `
+                            <tr>
+                                <td>${server.serverName}</td>
+                                <td>${server.ip}</td>
+                                <td class="${memoryClass}">${server.memoryUsagePercentage}%</td>
+                                <td class="${cpuClass}">${server.cpuUsagePercentage}%</td>
+                                <td class="${ramClass}">${server.ramUsagePercentage}%</td>
+                            </tr>`;
+                        tableBody.innerHTML += row;
+                    });
+                })
+                .catch(error => console.error('Error refreshing table:', error));
+        }
+
+        // Set interval to refresh the table every 30 seconds
+        setInterval(refreshUsageTable, 60000); // 30 seconds interval
+        // Refresh table on page load
+        document.addEventListener('DOMContentLoaded', refreshUsageTable);
+    </script>
+</body>
+<p style="text-align: center;">
+    <a href="status">Server Port Monitoring</a>
+</p>
+</html>

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Server Port Monitoring</title>
+	<link rel="icon" href="/infinite.png" type="image/x-icon">
+    <style>
+        /* General Styling */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f9f9f9;
+        }
+
+        h1 {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .project-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+            margin: 20px;
+        }
+
+        .project-box {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            width: 300px;
+            text-align: center;
+            padding: 20px;
+            transition: transform 0.2s ease;
+        }
+
+        .project-box:hover {
+            transform: scale(1.05);
+        }
+
+        .project-name {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .project-status {
+            font-size: 16px;
+            padding: 10px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+
+        .status-good {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .status-issue {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+		.status-warning {
+		       background-color: #fff3cd;
+		       color: #856404;
+		   }
+        @media (max-width: 768px) {
+            .project-box {
+                width: 100%;
+            }
+        }
+    </style>
+	<script>
+	    function fetchProjects() {
+	        fetch('./status-data')
+	            .then(response => response.json())
+	            .then(data => {
+	                const container = document.querySelector('.project-container');
+	                container.innerHTML = '';
+	
+	                data.forEach(server => {
+	                    const hasServices = server.serverPortList && server.serverPortList.length > 0;
+	                    const overallStatus = hasServices 
+	                        ? (server.serverPortList.every(s => s.status === 'UP') ? 'UP' : 'DOWN') 
+	                        : 'NO_SERVICES';
+	
+	                    const projectBox = document.createElement('div');
+	                    projectBox.className = 'project-box';
+	                    projectBox.innerHTML = `
+	                        <div class="project-name">${server.serverName}</div>
+	                        <div class="project-status 
+	                            ${overallStatus === 'UP' ? 'status-good' : 
+	                              overallStatus === 'NO_SERVICES' ? 'status-warning' : 
+	                              'status-issue'}">
+	                            ${overallStatus === 'UP' ? 'Everything is Good' : 
+	                              overallStatus === 'NO_SERVICES' ? 'No services found' : 
+	                              'Issue Detected'}
+	                        </div>
+	                    `;
+	
+						projectBox.addEventListener('click', () => {
+						    const projectName = server.serverName; // Ensure serverName is correctly retrieved
+						    localStorage.setItem('selectedProject', projectName); // Store in localStorage (optional)
+						    window.location.href = `/monitor/projectStatus?projectName=${encodeURIComponent(projectName)}`; // Redirect with query param
+						});
+	
+	                    container.appendChild(projectBox);
+	                });
+	            })
+	            .catch(error => console.error('Error fetching projects:', error));
+	    }
+	
+	    document.addEventListener('DOMContentLoaded', () => {
+	        fetchProjects();
+	        setInterval(fetchProjects, 100000);
+	    });
+	</script>
+</head>
+<body>
+    <h1>Server Port Monitoring</h1>
+    <div class="project-container">
+    </div>
+</body>
+</html>
