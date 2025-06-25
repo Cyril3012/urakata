@@ -18,8 +18,6 @@ import com.urakata.dto.ServerPortStatusRespDto;
 import com.urakata.dto.SystemUsageDto;
 import com.urakata.service.IPortMonitoringService;
 
-import jakarta.servlet.http.HttpServletResponse;
-
 @Controller
 @RequestMapping("/monitor")
 public class PortMonitoringController {
@@ -49,7 +47,6 @@ public class PortMonitoringController {
 	@ResponseBody
 	public ProjectStatusRespDto getProjectStatusAsJson(String projectName) {
 
-		// projectName = "Project-GI";
 		return portMonitoringService.getProjectStatusAsJson(projectName);
 	}
 
@@ -63,24 +60,7 @@ public class PortMonitoringController {
 
 	@GetMapping("/simple")
 	public String simple(Model model) throws IOException {
-//		long memoryUsages = portMonitoringService.getMemoryUsage("desktop-dqjhjpa\\bis", "est123", "192.168.1.197");
-		String username = "estdell6";
-		String password = "est123";
-		String host = "192.168.1.1";
-//
-		int port = 22; // Default SSH port
-		String command = "ls -la"; // Command to execute
-		String ip = "43.205.188.191"; // Replace with the server IP
-		String pemFilePath = "D:\\ProjectGi\\10.Others\\ProjectGi.pem"; // Path to your private key
-		String remoteFilePath = "/var/log/syslog"; // Path to the remote log file
-		String localFilePath = "D:\\ProjectGi\\10.Others";
-//		portMonitoringService.downloadLogFile(ip, pemFilePath, remoteFilePath, localFilePath);
-//		 portMonitoringService.executeRemoteCommand(username, password, host, port,
-//		 command);
-		// portMonitoringService.checkUtlization();
-		String sysUsage = portMonitoringService.executeRemoteCommandWithPem("43.205.188.191",
-				"D:\\ProjectGi\\10.Others\\ProjectGi.pem");
-		sysUsage = portMonitoringService.executeRemoteCommand("192.168.1.206", "ubuntu", "est123");
+
 		List<SystemUsageDto> serversUtil = portMonitoringService.getServerUtilization();
 		System.out.println("Servers: " + serversUtil); // Log the data
 		model.addAttribute("server", serversUtil);
@@ -109,11 +89,11 @@ public class PortMonitoringController {
 		}
 	}
 
-	@GetMapping("/download")
-	public void downloadExcel(HttpServletResponse response) throws IOException {
-		response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-		response.setHeader("Content-Disposition", "attachment; filename=DynamicExcel.xlsx");
-
-		portMonitoringService.exportExcel(response);
-	}
+//	@GetMapping("/download")
+//	public void downloadExcel(HttpServletResponse response) throws IOException {
+//		response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+//		response.setHeader("Content-Disposition", "attachment; filename=DynamicExcel.xlsx");
+//
+//		portMonitoringService.exportExcel(response);
+//	}
 }
