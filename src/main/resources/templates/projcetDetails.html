@@ -114,6 +114,70 @@
 			padding: 10px 15px;
 			border-radius: 5px;
 		}
+
+		.maintenance-table {
+			border-radius: 10px;
+			overflow: hidden;
+			box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+			margin-top: 10px;
+		}
+
+		.maintenance-table th {
+			background-color: #007bff;
+			color: #fff;
+			text-transform: uppercase;
+			font-size: 14px;
+			padding: 14px 10px;
+		}
+
+		.maintenance-table td {
+			padding: 14px 10px;
+			font-size: 14px;
+			background-color: #fff;
+			transition: background-color 0.3s ease;
+		}
+
+		/* Row hover effect */
+		.maintenance-table tr:hover td {
+			background-color: #f1f7ff;
+		}
+
+		/* Status styles */
+		.status-done {
+			background-color: rgb(204, 247, 219);
+			color: #198754;
+			font-weight: bold;
+		}
+
+		.status-pending {
+			background-color: #fff3cd;
+			color: #f48533;
+			font-weight: bold;
+		}
+
+		.status-upcoming {
+			background-color: #d0ebff;
+			color: #084298;
+			font-weight: bold;
+		}
+
+		/* Mark Complete button */
+		.mark-complete-btn {
+			background-color: #28a745;
+			color: white;
+			border: none;
+			padding: 8px 12px;
+			border-radius: 6px;
+			cursor: pointer;
+			font-weight: 600;
+			font-size: 14px;
+			transition: background-color 0.3s ease;
+		}
+
+		.mark-complete-btn:hover {
+			background-color: #1e7e34;
+			transform: scale(1.03);
+		}
 	</style>
 </head>
 
@@ -132,7 +196,9 @@
 	<div class="log-download" id="log-download">
 		<p>Loading log download section...</p>
 	</div>
-
+	<div class="maintenance-status" id="maintenance-status">
+		<p>Loading maintenance tasks...</p>
+	</div>
 	<script>
 		const urlParams = new URLSearchParams(window.location.search);
 		const projectName = urlParams.get('projectName') || "Unknown Project";
@@ -171,13 +237,6 @@
 				serviceStatusHtml += "</table>";
 				document.getElementById('service-status').innerHTML = serviceStatusHtml;
 
-			//           let logDownloadHtml = "<p>Log files available for download:</p><ul>";
-			//				data.logFileDownload.forEach(log => {
-			//					logDownloadHtml += `<li>${log} <button onclick="downloadLog('${data.serverName}', '${log}')">Download</button></li>`;
-			//				});
-			//				logDownloadHtml += "</ul>";
-			//				document.getElementById('log-download').innerHTML = logDownloadHtml;-->
-
 				let logDownloadHtml = "<p>Log files available for download:</p><ul class='download-list'>";
 				data.logFileDownload.forEach(log => {
 					logDownloadHtml += `
@@ -205,6 +264,75 @@
 					console.error("Download error:", error);
 				});
 		}
+		fetch(`/maintenance/tasks?projectName=${encodeURIComponent(projectName)}`)
+			.then(response => response.json())
+			.then(tasks => {
+				let html = `<table class="maintenance-table">
+				  <tr>
+				    <th>Task</th>
+				    <th>Frequency</th>
+				    <th>Last Done</th>
+				    <th>Next Due</th>
+				    <th>Status</th>
+				    <th>Completed On</th>
+				    <th>Completed BY</th>
+				    <th>Remarks</th>
+				    <th>Action</th>
+				  </tr>`;
+
+				tasks.forEach(task => {
+					const statusClass = task.status === 'DONE'
+						? 'status-done'
+						: task.status === 'PENDING'
+							? 'status-pending'
+							: 'status-upcoming';
+
+					html += `
+				  <tr>
+				    <td>${task.taskName}</td>
+				    <td>${task.frequency}</td>
+				    <td>${task.lastDone || '-'}</td>
+				    <td>${task.nextDue || '-'}</td>
+				    <td class="${statusClass}">${task.status}</td>
+				    <td>${task.completedOn || '-'}</td>
+				    <td>${task.completedBy || '-'}</td>
+				    <td>${task.remarks || '-'}</td>
+				    <td><button class="mark-complete-btn" onclick="markMaintenanceComplete('${task.taskName}')">Mark as Complete</button></td>
+				  </tr>`;
+				});
+
+				html += '</table>';
+				document.getElementById('maintenance-status').innerHTML = html;
+			});
+
+		function markMaintenanceComplete(taskName) {
+			const completedBy = prompt("Enter your name to mark as complete:");
+			if (!completedBy) return;
+			const remarks = prompt("Enter remarks (optional):");
+
+			const payload = {
+				projectName: projectName,
+				taskName: taskName,
+				completedBy: completedBy,
+				action: "completed",
+				remarks: remarks || ""
+			};
+
+			fetch('/maintenance/complete', {
+				method: 'PUT',
+				headers: {'Content-Type': 'application/json'},
+				body: JSON.stringify(payload)
+			}).then(res => res.text())
+				.then(msg => {
+					alert(msg);
+					location.reload(); // reload to refresh updated task status
+				})
+				.catch(err => {
+					console.error("Error:", err);
+					alert("Failed to mark as complete.");
+				});
+		}
+
 	</script>
 
 </body>
