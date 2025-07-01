@@ -1,126 +1,207 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
+
 <head>
-    <title>Server Port Monitoring</title>
+	<title>EST Server Monitoring</title>
 	<link rel="icon" href="/infinite.png" type="image/x-icon">
-    <style>
-        /* General Styling */
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f9f9f9;
-        }
+	<style>
+		/* General Styling */
+		body {
+			font-family: Arial, sans-serif;
+			margin: 0;
+			padding: 0;
+			background-color: #f9f9f9;
+		}
 
-        h1 {
-            text-align: center;
-            margin: 20px 0;
-        }
+		h1 {
+			text-align: center;
+			margin: 20px 0;
+		}
 
-        .project-container {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 20px;
-            margin: 20px;
-        }
+		.page-title {
+			font-size: 32px;
+			font-weight: 900;
+			background: linear-gradient(to right, #205d76, #1b6b86, #2f6982);
+			color: white;
+			padding: 20px;
+			border-radius: 10px;
+			margin: 20px auto;
+			text-align: center;
+			box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+			width: fit-content;
+			animation: glow 1.5s ease-in-out infinite alternate;
+		}
 
-        .project-box {
-            background-color: #fff;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            width: 300px;
-            text-align: center;
-            padding: 20px;
-            transition: transform 0.2s ease;
-        }
+		.project-container {
+			display: flex;
+			flex-wrap: wrap;
+			justify-content: center;
+			gap: 20px;
+			margin: 20px;
+		}
 
-        .project-box:hover {
-            transform: scale(1.05);
-        }
+		.project-box {
+			background-color: #fff;
+			border: 1px solid #ddd;
+			border-radius: 8px;
+			box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+			width: 300px;
+			text-align: center;
+			padding: 20px;
+			transition: transform 0.2s ease;
+		}
 
-        .project-name {
-            font-size: 20px;
-            font-weight: bold;
-            margin-bottom: 10px;
-        }
+		.project-box:hover {
+			transform: scale(1.05);
+		}
 
-        .project-status {
-            font-size: 16px;
-            padding: 10px;
-            border-radius: 5px;
-            font-weight: bold;
-        }
+		.project-name {
+			font-size: 20px;
+			font-weight: bold;
+			margin-bottom: 10px;
+		}
 
-        .status-good {
-            background-color: #d4edda;
-            color: #155724;
-        }
+		.project-status {
+			font-size: 16px;
+			padding: 10px;
+			border-radius: 5px;
+			font-weight: bold;
 
-        .status-issue {
-            background-color: #f8d7da;
-            color: #721c24;
-        }
+		}
+
+		.project-status:hover {
+			cursor: pointer;
+		}
+
+		.status-good {
+			background-color: #d4edda;
+			color: #155724;
+		}
+
+		.status-issue {
+			background-color: #f8d7da;
+			color: #721c24;
+		}
+
 		.status-warning {
-		       background-color: #fff3cd;
-		       color: #856404;
-		   }
-        @media (max-width: 768px) {
-            .project-box {
-                width: 100%;
-            }
-        }
-    </style>
+			background-color: #fff3cd;
+			color: #856404;
+		}
+
+
+		@keyframes glow {
+			from {
+				box-shadow: 0 0 10px #00e0ff;
+			}
+		}
+
+		@media (max-width: 768px) {
+			.project-box {
+				width: 100%;
+			}
+		}
+	</style>
 	<script>
-	    function fetchProjects() {
-	        fetch('./status-data')
-	            .then(response => response.json())
-	            .then(data => {
-	                const container = document.querySelector('.project-container');
-	                container.innerHTML = '';
-	
-	                data.forEach(server => {
-	                    const hasServices = server.serverPortList && server.serverPortList.length > 0;
-	                    const overallStatus = hasServices 
-	                        ? (server.serverPortList.every(s => s.status === 'UP') ? 'UP' : 'DOWN') 
-	                        : 'NO_SERVICES';
-	
-	                    const projectBox = document.createElement('div');
-	                    projectBox.className = 'project-box';
-	                    projectBox.innerHTML = `
+		function fetchProjects() {
+			fetch('./status-data')
+				.then(response => response.json())
+				.then(data => {
+					const container = document.querySelector('.project-container');
+					container.innerHTML = '';
+
+					data.forEach(server => {
+						const hasServices = server.serverPortList && server.serverPortList.length > 0;
+						const overallStatus = hasServices
+							? (server.serverPortList.every(s => s.status === 'UP') ? 'UP' : 'DOWN')
+							: 'NO_SERVICES';
+
+						const projectBox = document.createElement('div');
+						projectBox.className = 'project-box';
+						projectBox.innerHTML = `
 	                        <div class="project-name">${server.serverName}</div>
 	                        <div class="project-status 
-	                            ${overallStatus === 'UP' ? 'status-good' : 
-	                              overallStatus === 'NO_SERVICES' ? 'status-warning' : 
-	                              'status-issue'}">
-	                            ${overallStatus === 'UP' ? 'Everything is Good' : 
-	                              overallStatus === 'NO_SERVICES' ? 'No services found' : 
-	                              'Issue Detected'}
+	                            ${overallStatus === 'UP' ? 'status-good' :
+								overallStatus === 'NO_SERVICES' ? 'status-warning' :
+									'status-issue'}">
+	                            ${overallStatus === 'UP' ? 'Everything is Good' :
+								overallStatus === 'NO_SERVICES' ? 'No services found' :
+									'Issue Detected'}
 	                        </div>
 	                    `;
-	
+
 						projectBox.addEventListener('click', () => {
-						    const projectName = server.serverName; // Ensure serverName is correctly retrieved
-						    localStorage.setItem('selectedProject', projectName); // Store in localStorage (optional)
-						    window.location.href = `/monitor/projectStatus?projectName=${encodeURIComponent(projectName)}`; // Redirect with query param
+							const projectName = server.serverName; // Ensure serverName is correctly retrieved
+							localStorage.setItem('selectedProject', projectName); // Store in localStorage (optional)
+							window.location.href = `/monitor/projectStatus?projectName=${encodeURIComponent(projectName)}`; // Redirect with query param
 						});
-	
-	                    container.appendChild(projectBox);
-	                });
-	            })
-	            .catch(error => console.error('Error fetching projects:', error));
-	    }
-	
-	    document.addEventListener('DOMContentLoaded', () => {
-	        fetchProjects();
-	        setInterval(fetchProjects, 100000);
-	    });
+
+						container.appendChild(projectBox);
+					});
+				})
+				.catch(error => console.error('Error fetching projects:', error));
+		}
+
+		document.addEventListener('DOMContentLoaded', () => {
+			fetchProjects();
+			setInterval(fetchProjects, 100000);
+		});
+
+		// 🐉 DRAG-AND-MOVE FEATURE
+		var b = X = Y = T = L = 0;
+
+		document.addEventListener("mousedown", c);
+		document.addEventListener("touchstart", c);
+
+		function c(a) {
+			if (!a.target.classList.contains("project-box")) return;
+
+			a.preventDefault();
+			b = Date.now();
+			a.target.setAttribute("data-drag", b);
+			a.target.style.position = "relative";
+			T = a.target.style.top.split("px")[0] || 0;
+			L = a.target.style.left.split("px")[0] || 0;
+			X = a.clientX || a.touches[0].clientX;
+			Y = a.clientY || a.touches[0].clientY;
+		}
+
+		document.addEventListener("mousemove", d);
+		document.addEventListener("touchmove", d);
+
+		function d(a) {
+			if (!b) return;
+			var e = document.querySelector('[data-drag="' + b + '"]');
+			if (!e) return;
+			e.style.top = parseInt(T) + parseInt((a.clientY || a.touches[0].clientY) - Y) + "px";
+			e.style.left = parseInt(L) + parseInt((a.clientX || a.touches[0].clientX) - X) + "px";
+		}
+
+		document.addEventListener("mouseup", f);
+		document.addEventListener("touchend", f);
+		function f() {b = "";}
+
+		document.addEventListener("mouseover", g);
+		function g(a) {
+			if (a.target.classList.contains("project-box")) {
+				a.target.style.cursor = "move";
+				a.target.style.boxShadow = "inset lime 0 0 1px, lime 0 0 1px";
+			}
+		}
+
+		document.addEventListener("mouseout", h);
+		function h(a) {
+			if (a.target.classList.contains("project-box")) {
+				a.target.style.cursor = "";
+				a.target.style.boxShadow = "";
+			}
+		}
 	</script>
 </head>
+
 <body>
-    <h1>Server Port Monitoring</h1>
-    <div class="project-container">
-    </div>
+	<h1 class="page-title">💡 Urakata - DevOps Monitoring Dashboard</h1>
+	<div class="project-container">
+	</div>
 </body>
+
 </html>

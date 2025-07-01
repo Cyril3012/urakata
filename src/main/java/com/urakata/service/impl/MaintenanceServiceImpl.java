@@ -4,9 +4,7 @@ import java.time.LocalDate;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -24,8 +22,6 @@ import com.urakata.repository.IMaintenanceDetailsRepository;
 import com.urakata.repository.IMaintenanceTaskTrackerDetailsRepository;
 import com.urakata.service.IMaintenanceService;
 
-import jakarta.annotation.PostConstruct;
-
 @Service
 public class MaintenanceServiceImpl implements IMaintenanceService {
 
@@ -35,9 +31,7 @@ public class MaintenanceServiceImpl implements IMaintenanceService {
 	@Autowired
 	private IMaintenanceTaskTrackerDetailsRepository maintenanceTaskTrackerDetailsRepository;
 
-	// Dummy storage for example (replace with DB logic)
-	private Map<String, List<MaintenanceTaskDto>> projectTasks = new HashMap<>();
-
+	// GET ALL TASK FOR THE PROJECT
 	@Override
 	public Optional<List<MaintenanceTaskDto>> getTasksForProject(String projectName) {
 
@@ -79,6 +73,7 @@ public class MaintenanceServiceImpl implements IMaintenanceService {
 		return response;
 	}
 
+	// MARK THE TASK AS COMPLETE
 	@Override
 	public ResponseEntity<?> markTaskAsComplete(MaintenanceCompleteRequestDto requestDto) {
 
@@ -115,6 +110,11 @@ public class MaintenanceServiceImpl implements IMaintenanceService {
 		sheduleMaintenanceTask(); // Call the actual logic
 	}
 
+	// TO TRIGGER SHEDULER MANUALY
+	/*
+	 * based on next due and frequency the existing data is refreshed as new task
+	 * and existing data is logged in seperate table
+	 */
 	@Override
 	public ResponseEntity<?> sheduleMaintenanceTask() {
 
@@ -176,6 +176,7 @@ public class MaintenanceServiceImpl implements IMaintenanceService {
 		return (date != null) ? date.toString() : null;
 	}
 
+	// HELPER METHOD TO EXTRACT DAY FROM STRING
 	private int extractDays(String frequency) {
 		try {
 			if (frequency != null && frequency.matches("\\d+\\s*Days")) {
@@ -187,27 +188,4 @@ public class MaintenanceServiceImpl implements IMaintenanceService {
 		return Integer.MAX_VALUE; // put invalid/unknown frequencies at the end
 	}
 
-	private int parseFrequency(String freq) {
-		if (freq == null)
-			return 30;
-		if (freq.toLowerCase().contains("90"))
-			return 90;
-		return 30;
-	}
-
-	@PostConstruct
-	public void init() {
-		List<MaintenanceTaskDto> yogaTasks = List.of(
-				new MaintenanceTaskDto("YOGA-yogananth.com", "Log Clear", "30 Days", "2025-06-01", "2025-07-01",
-						"PENDING", null, null, null),
-				new MaintenanceTaskDto("YOGA-yogananth.com", "Database Backup", "90 Days", "2025-04-01", "2025-07-01",
-						"PENDING", null, null, null),
-				new MaintenanceTaskDto("YOGA-yogananth.com", "SSL Renewal", "365 Days", "2024-08-01", "2025-08-01",
-						"DONE", "2024-08-01", "Chandru", null));
-		projectTasks.put("YOGA-yogananth.com", new ArrayList<>(yogaTasks));
-
-		List<MaintenanceTaskDto> otherProjectTasks = List.of(new MaintenanceTaskDto("GI-Monitoring", "DB Sync Check",
-				"15 Days", "2025-06-20", "2025-07-05", "PENDING", null, null, null));
-		projectTasks.put("GI-Monitoring", new ArrayList<>(otherProjectTasks));
-	}
 }

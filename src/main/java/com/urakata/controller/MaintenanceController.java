@@ -26,6 +26,7 @@ public class MaintenanceController {
 	@Autowired
 	private IMaintenanceService maintenanceService;
 
+	// GET ALL TASKS OF THE SERVER
 	@GetMapping("/tasks")
 	public ResponseEntity<?> getTasks(@RequestParam String projectName) {
 
@@ -42,6 +43,7 @@ public class MaintenanceController {
 		return response;
 	}
 
+	// MARK AS COMPLETE FOR THE TASK
 	@PutMapping("/complete")
 	public ResponseEntity<?> markComplete(@RequestBody MaintenanceCompleteRequestDto request) {
 		ResponseEntity<?> response = new ResponseEntity<>(HttpStatus.NO_CONTENT);
@@ -85,6 +87,7 @@ public class MaintenanceController {
 			return result;
 	}
 
+	// SCHEDULER TO TRIGGER NEW TASK GENERATION BASED ON NEXT DUE DATE:
 	@PutMapping("/sheduleMaintenanceTask")
 	public ResponseEntity<?> sheduleMaintenanceTask() {
 		ResponseEntity<?> response = new ResponseEntity<>(HttpStatus.NO_CONTENT);

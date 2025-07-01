@@ -1,10 +1,13 @@
 package com.urakata.service.impl;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.Socket;
+import java.nio.file.Paths;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -44,18 +47,20 @@ public class PortMonitoringServiceImpl implements IPortMonitoringService {
 	private final List<SystemUsageDto> tempServerUtilization = new ArrayList<>();
 	private final List<SystemUsageDto> serverUtilization = new ArrayList<>();
 
+	// scheduler that update server utilization every 1 min
 	@Scheduled(fixedRate = 60000)
 	public void checkUtlization() throws IOException {
 		tempServerUtilization.clear();
 		List<ServerDetails> allServerDetails = serverDetailsRepository.findAll();
 		for (ServerDetails server : allServerDetails) {
-
 			String ip = null;
 			String pemFilePath = null;
 			String userName = null;
 			String password = null;
 			long[] utilization = new long[] { 0, 0, 0 };
-			// call the system utilization method dynamically
+
+			// call the system utilization method dynamically based on password or pem file
+			// authorization
 			ip = server.getServerIp();
 			userName = server.getUsername();
 			pemFilePath = server.getLocalPublicKeyPath();
@@ -71,22 +76,18 @@ public class PortMonitoringServiceImpl implements IPortMonitoringService {
 				userName = server.getUsername();
 				password = server.getPassword();
 				try {
-					String sysUsage = executeRemoteCommand(ip, userName, password, "linux");
+					String sysUsage = executeRemoteCommand(ip, userName, password, server.getOsType());
 					if (sysUsage != null && !sysUsage.isBlank()) {
 						utilization = parseUtilizationResult(sysUsage);
 					}
 				} catch (IOException e) {
-					// TODO Auto-generated catch block
 					System.err.println("Failed to connect to " + ip + ": " + e.getMessage());
 				}
-				// utilization = getServerUtilization(userName, password, server.getServerIp(),
-				// 22);
 			} else if (pemFilePath != null) {
 				userName = server.getUsername();
 				try {
 					utilization = parseUtilizationResult(executeRemoteCommandWithPem(ip, pemFilePath, userName));
 				} catch (IOException e) {
-					// TODO Auto-generated catch block
 					System.err.println("Failed to connect to " + ip + ": " + e.getMessage());
 				}
 			}
@@ -94,9 +95,9 @@ public class PortMonitoringServiceImpl implements IPortMonitoringService {
 //			long cpuUtilization = systemUsages[1];
 //			long ramUtilization = systemUsages[2];
 
-			// uncomment this to send
 			tempServerUtilization.add(new SystemUsageDto(server.getServerName(), server.getServerIp(), utilization[0],
 					utilization[1], utilization[2]));
+
 		}
 		synchronized (this) {
 			serverUtilization.clear();
@@ -109,12 +110,13 @@ public class PortMonitoringServiceImpl implements IPortMonitoringService {
 		return serverUtilization;
 	}
 
-	// Scheduled task to monitor ports
+	// Scheduled task to monitor ports of each server
 	@Scheduled(fixedRate = 10000) // Every 10 seconds
 	public void monitorPorts() {
 		List<ServerDetails> allServerDetails = serverDetailsRepository.findAll();
 		tempServerPortStatuses.clear(); // Clear previous statuses
 		for (ServerDetails serverDetail : allServerDetails) {
+
 			ServerPortStatusRespDto porjectServiceStatus = new ServerPortStatusRespDto();
 
 			porjectServiceStatus.setServerIp(serverDetail.getServerIp());
@@ -138,11 +140,14 @@ public class PortMonitoringServiceImpl implements IPortMonitoringService {
 
 				tempServerPortStatuses.add(porjectServiceStatus);
 			}
+
 		}
 		serverPortStatuses.clear();
 		serverPortStatuses.addAll(tempServerPortStatuses);
+
 	}
 
+	// socket to ping the port of the server
 	private String checkPortStatus(String serverIp, int port) {
 		try (Socket socket = new Socket(serverIp, port)) {
 			return "UP";
@@ -157,7 +162,6 @@ public class PortMonitoringServiceImpl implements IPortMonitoringService {
 	}
 
 	// GET PROJECT DETAILS
-
 	public ProjectStatusRespDto getProjectStatusAsJson(String projectName) {
 
 		ProjectStatusRespDto projectStatusRespObj = new ProjectStatusRespDto();
@@ -200,6 +204,7 @@ public class PortMonitoringServiceImpl implements IPortMonitoringService {
 		return projectStatusRespObj;
 	}
 
+	// server utilization using username and password using ssh connection
 	public static long[] getServerUtilization(String username, String password, String host, int port) {
 		JSch jsch = new JSch();
 		long[] utilization = new long[3]; // memoryUsage, cpuUtilization, ramUtilization
@@ -257,8 +262,8 @@ public class PortMonitoringServiceImpl implements IPortMonitoringService {
 		channel.disconnect();
 		return output.toString().trim();
 	}
-	// DOWNLOAD LOG
 
+	// DOWNLOAD LOG
 	public String executeDownload(String serverName, String logName) throws IOException {
 
 		Optional<ServerDetails> serverObj = serverDetailsRepository.findByServerName(serverName);
@@ -282,16 +287,28 @@ public class PortMonitoringServiceImpl implements IPortMonitoringService {
 					remoteFilePath = filePath.getLogpath();
 				}
 			}
+			LocalDate today = LocalDate.now();
+			int year = today.getYear();
+			int month = today.getMonthValue();
+			int day = today.getDayOfMonth();
+
+			// Format folder structure
+			String yearStr = String.valueOf(year);
+			String monthStr = String.format("%02d", month);
+			String dayStr = String.format("%02d", day);
+
+			// Dynamically build the local path
+			String dynamicLocalPath = Paths.get(localFilePath, yearStr, monthStr, dayStr).toString();
 			if (!(localFilePath == null || remoteFilePath == null)) {
 				// USING PEM FILE
 				pemFilePath = serverObj.get().getLocalPublicKeyPath();
 				if (pemFilePath != null) {
 					username = serverObj.get().getUsername();
-					success = downloadFileWithPemFile(ip, pemFilePath, remoteFilePath, localFilePath, username);
+					success = downloadFileWithPemFile(ip, pemFilePath, remoteFilePath, dynamicLocalPath, username);
 				} else if (!(serverObj.get().getPemFilePath() == null) && !serverObj.get().getPemFilePath().isEmpty()) {
 					username = serverObj.get().getUsername();
 					pemFilePath = serverObj.get().getPemFilePath();
-					success = downloadFileWithPemFile(ip, pemFilePath, remoteFilePath, localFilePath, username);
+					success = downloadFileWithPemFile(ip, pemFilePath, remoteFilePath, dynamicLocalPath, username);
 				}
 
 				// USING CREDENTIALS
@@ -318,9 +335,9 @@ public class PortMonitoringServiceImpl implements IPortMonitoringService {
 		return returnMessage;
 	}
 
-	// working
-	public boolean downloadFileWithPemFile(String ip, String pemFilePath, String remoteFilePath, String localFilePath,
-			String userName) throws IOException {
+	// DOWNLOAD LOG FILE IN DYNAMIC PATH USING PEM FILE ACCESS
+	public boolean downloadFileWithPemFile(String ip, String pemFilePath, String remoteFilePath,
+			String dynamicLocalPath, String userName) throws IOException {
 		SSHClient ssh = new SSHClient();
 		ssh.addHostKeyVerifier(new PromiscuousVerifier()); // Disable host key checking
 
@@ -332,12 +349,27 @@ public class PortMonitoringServiceImpl implements IPortMonitoringService {
 			System.out.println("Authenticating as user: " + userName);
 			ssh.authPublickey(userName);
 			System.out.println("Starting SFTP session...");
+			String localFullPath = remoteFilePath;
 			try (SFTPClient sftp = ssh.newSFTPClient()) {
-				System.out.println("Downloading file: " + remoteFilePath + " to " + localFilePath);
-				sftp.get(remoteFilePath, localFilePath);
+				// Get current date
+
+				// Ensure directory exists
+				File directory = new File(dynamicLocalPath);
+				if (!directory.exists()) {
+					boolean created = directory.mkdirs();
+					if (!created) {
+						throw new IOException("Failed to create local directory: " + dynamicLocalPath);
+					}
+				}
+
+				// Final destination path with file name
+				localFullPath = Paths.get(dynamicLocalPath, new File(remoteFilePath).getName()).toString();
+
+				System.out.println("Downloading file: " + remoteFilePath + " to " + localFullPath);
+				sftp.get(remoteFilePath, localFullPath);
 			}
 
-			System.out.println("File downloaded successfully to: " + localFilePath);
+			System.out.println("File downloaded successfully to: " + localFullPath);
 			return true;
 		} catch (IOException e) {
 			System.err.println("Network error: " + e.getMessage());
@@ -353,8 +385,9 @@ public class PortMonitoringServiceImpl implements IPortMonitoringService {
 		}
 	}
 
+	// DOWNLOAD LOG FILE IN DYNAMIC PATH USING SERVER PASSWORD
 	public boolean downloadFilesWithPassword(String ip, String username, String password, String remoteFilePath,
-			String localFilePath) throws IOException {
+			String dynamicLocalPath) throws IOException {
 		// Initialize SSHClient
 		SSHClient ssh = new SSHClient();
 		ssh.addHostKeyVerifier(new PromiscuousVerifier()); // Disable host key checking
@@ -368,12 +401,27 @@ public class PortMonitoringServiceImpl implements IPortMonitoringService {
 			ssh.authPassword(username, password); // Authenticate using password
 
 			System.out.println("Starting SFTP session...");
+			String localFullPath = remoteFilePath;
 			try (SFTPClient sftp = ssh.newSFTPClient()) {
-				System.out.println("Downloading file: " + remoteFilePath + " to " + localFilePath);
-				sftp.get(remoteFilePath, localFilePath); // Download the file
+				// Get current date
+
+				// Step 3: Create directories if they don't exist
+				File directory = new File(dynamicLocalPath);
+				if (!directory.exists()) {
+					boolean created = directory.mkdirs();
+					if (!created) {
+						throw new IOException("Failed to create local directory: " + dynamicLocalPath);
+					}
+				}
+
+				// Final destination path with file name
+				localFullPath = Paths.get(dynamicLocalPath, new File(remoteFilePath).getName()).toString();
+
+				System.out.println("Downloading file: " + remoteFilePath + " to " + localFullPath);
+				sftp.get(remoteFilePath, localFullPath); // Download the file
 			}
 
-			System.out.println("File downloaded successfully to: " + localFilePath);
+			System.out.println("File downloaded successfully to: " + localFullPath);
 			return true;
 		} catch (IOException e) {
 			System.err.println("Network error: " + e.getMessage());
@@ -400,7 +448,7 @@ public class PortMonitoringServiceImpl implements IPortMonitoringService {
 			ssh.authPassword(username, password);
 			os = "linux";
 			String command;
-			if (os.equalsIgnoreCase("linux")) {
+			if (os.equalsIgnoreCase("linux") || os.equalsIgnoreCase("UBUNTU")) {
 				command = "echo 'CPU:' $(top -bn1 | grep 'Cpu(s)' | awk '{print $2 + $4}') '%' "
 						+ "&& echo 'Memory:' $(free | awk '/Mem/{printf(\"%.2f\", $3/$2 * 100.0)}') '%' "
 						+ "&& echo 'Disk:' $(df --output=pcent / | tail -n 1 | tr -d ' ')";
@@ -462,6 +510,7 @@ public class PortMonitoringServiceImpl implements IPortMonitoringService {
 		}
 	}
 
+	// HELPER METHOD
 	public static long extractValue(Pattern pattern, String result) {
 		Matcher matcher = pattern.matcher(result);
 		if (matcher.find()) {
@@ -470,6 +519,7 @@ public class PortMonitoringServiceImpl implements IPortMonitoringService {
 		return 0;
 	}
 
+	// GET SERVER UTILIZATION USING PEM FILE
 	public String executeRemoteCommandWithPem(String ip, String pemFilePath, String user) throws IOException {
 		SSHClient ssh = new SSHClient();
 		ssh.addHostKeyVerifier(new PromiscuousVerifier()); // Disable host key checking
@@ -549,6 +599,41 @@ public class PortMonitoringServiceImpl implements IPortMonitoringService {
 			ssh.disconnect(); // Make sure to disconnect the SSH client after use
 		}
 	}
+
+//	public String getRemoteWindowsUtilization(String ip, String username, String password) {
+//	    try {
+//	        String psCommand =
+//	                "$secpasswd = ConvertTo-SecureString '" + password + "' -AsPlainText -Force; " +
+//	                "$cred = New-Object System.Management.Automation.PSCredential ('" + username + "', $secpasswd); " +
+//	                "Invoke-Command -ComputerName " + ip + " -Credential $cred -ScriptBlock { " +
+//	                "  $cpu = (Get-WmiObject Win32_Processor).LoadPercentage; " +
+//	                "  $os = Get-WmiObject Win32_OperatingSystem; " +
+//	                "  $memUsed = [math]::Round((($os.TotalVisibleMemorySize - $os.FreePhysicalMemory) * 100) / $os.TotalVisibleMemorySize); " +
+//	                "  $disk = Get-WmiObject Win32_LogicalDisk -Filter \\\"DeviceID='C:'\\\"; " +
+//	                "  $diskUsed = [math]::Round((($disk.Size - $disk.FreeSpace) * 100) / $disk.Size); " +
+//	                "  Write-Output \\\"CPU: $cpu %\\nMemory: $memUsed %\\nDisk: $diskUsed %\\\" " +
+//	                "}";
+//
+//	        String fullCommand = "powershell.exe -Command \"" + psCommand + "\"";
+//
+//	        ProcessBuilder builder = new ProcessBuilder("cmd.exe", "/c", fullCommand);
+//	        builder.redirectErrorStream(true);
+//	        Process process = builder.start();
+//
+//	        BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+//	        StringBuilder result = new StringBuilder();
+//	        String line;
+//	        while ((line = reader.readLine()) != null) {
+//	            result.append(line).append("\n");
+//	        }
+//	        process.waitFor();
+//	        return result.toString().trim();
+//
+//	    } catch (IOException | InterruptedException e) {
+//	        System.err.println("Failed to execute remote PowerShell: " + e.getMessage());
+//	        return "Error";
+//	    }
+//	}
 
 	public static long[] parseUtilizationResult(String result) {
 		long[] utilization = new long[3]; // [memoryUsage (Disk %), cpuUtilization (%), ramUtilization (%)]

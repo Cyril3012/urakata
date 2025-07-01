@@ -36,13 +36,14 @@ public class PortMonitoringController {
 		return "monitor";
 	}
 
-	// New endpoint to serve JSON data
+	// backend api that send port status for all servers
 	@GetMapping("/status-data")
 	@ResponseBody
 	public List<ServerPortStatusRespDto> getServerPortStatusesAsJson() {
 		return portMonitoringService.getServerPortStatuses();
 	}
 
+	// backend api that send full data of a server
 	@GetMapping("/project-data")
 	@ResponseBody
 	public ProjectStatusRespDto getProjectStatusAsJson(String projectName) {
@@ -58,14 +59,15 @@ public class PortMonitoringController {
 		return serversUtil;
 	}
 
-	@GetMapping("/simple")
-	public String simple(Model model) throws IOException {
+	// return server utilization of all servers
+	@GetMapping("/serverUtilization")
+	public String utilization(Model model) throws IOException {
 
 		List<SystemUsageDto> serversUtil = portMonitoringService.getServerUtilization();
 		System.out.println("Servers: " + serversUtil); // Log the data
 		model.addAttribute("server", serversUtil);
 		model.addAttribute("message", "This is a test");
-		return "simple"; // Refers to 'simple.html' in the templates folder
+		return "utilization";
 
 	}
 
