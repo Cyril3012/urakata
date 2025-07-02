@@ -1,26 +1,43 @@
 package com.urakata.service.impl;
 
+import java.io.IOException;
 import java.time.LocalDate;
+import java.time.Month;
+import java.time.YearMonth;
+import java.time.format.TextStyle;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import org.apache.poi.ss.usermodel.HorizontalAlignment;
+import org.apache.poi.ss.usermodel.IndexedColors;
+import org.apache.poi.ss.usermodel.VerticalAlignment;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import com.alibaba.excel.EasyExcel;
+import com.alibaba.excel.write.handler.context.CellWriteHandlerContext;
+import com.alibaba.excel.write.metadata.style.WriteCellStyle;
+import com.alibaba.excel.write.metadata.style.WriteFont;
+import com.alibaba.excel.write.style.AbstractVerticalCellStyleStrategy;
+import com.alibaba.excel.write.style.column.LongestMatchColumnWidthStyleStrategy;
 import com.urakata.dto.MaintenanceCompleteRequestDto;
 import com.urakata.dto.MaintenanceTaskDto;
+import com.urakata.dto.MaintenanceTaskTrackerDto;
 import com.urakata.model.MaintenanceDetails;
 import com.urakata.model.MaintenanceTaskTrackerDetails;
 import com.urakata.repository.IMaintenanceDetailsRepository;
 import com.urakata.repository.IMaintenanceTaskTrackerDetailsRepository;
 import com.urakata.service.IMaintenanceService;
+
+import jakarta.servlet.http.HttpServletResponse;
 
 @Service
 public class MaintenanceServiceImpl implements IMaintenanceService {
@@ -186,6 +203,75 @@ public class MaintenanceServiceImpl implements IMaintenanceService {
 			// log warning if needed
 		}
 		return Integer.MAX_VALUE; // put invalid/unknown frequencies at the end
+	}
+
+	@Override
+	public void exportFilteredTasksToExcel(String projectName, int year, int month, HttpServletResponse response)
+			throws IOException {
+		// Fetch filtered data
+		List<MaintenanceTaskTrackerDto> exportList = new ArrayList<>();
+		LocalDate startDate = LocalDate.of(year, month, 1);
+		LocalDate endDate = YearMonth.of(year, month).atEndOfMonth(); // e.g., 2025-06-30
+
+		Optional<List<MaintenanceTaskTrackerDetails>> filteredTasksObj = maintenanceTaskTrackerDetailsRepository
+				.findByProjectNameAndDoneOnBetween(projectName, startDate, endDate);
+
+//		Optional<List<MaintenanceTaskTrackerDetails>> filteredTasksObj = maintenanceTaskTrackerDetailsRepository
+//				.findByProjectName(projectName);
+		if (filteredTasksObj.isPresent()) {
+			List<MaintenanceTaskTrackerDetails> filteredTasks = filteredTasksObj.get();
+			// Convert to DTO
+			exportList = filteredTasks.stream().map(task -> {
+				MaintenanceTaskTrackerDto dto = new MaintenanceTaskTrackerDto();
+				dto.setProjectName(task.getProjectName());
+				dto.setTaskName(task.getTaskName());
+				dto.setTaskCreatedOn(task.getTaskCreatedOn() != null ? task.getTaskCreatedOn().toString() : "");
+				dto.setTaskStatus(task.getTaskStatus());
+				dto.setDoneBy(task.getDoneBy());
+				dto.setDoneOn(task.getDoneOn() != null ? task.getDoneOn().toString() : "");
+				dto.setRemarks(task.getRemarks());
+				return dto;
+			}).toList();
+		}
+		String monthName = Month.of(month).getDisplayName(TextStyle.FULL, Locale.ENGLISH);
+		EasyExcel.write(response.getOutputStream(), MaintenanceTaskTrackerDto.class)
+				.registerWriteHandler(getCustomExcelStyle()) // your custom header/content style
+				.registerWriteHandler(new LongestMatchColumnWidthStyleStrategy()) // auto column width
+				.sheet("Maintenance Tasks_" + year + "_" + monthName).doWrite(exportList);
+
+	}
+
+	private AbstractVerticalCellStyleStrategy getCustomExcelStyle() {
+		return new AbstractVerticalCellStyleStrategy() {
+			@Override
+			protected WriteCellStyle headCellStyle(CellWriteHandlerContext context) {
+				WriteCellStyle style = new WriteCellStyle();
+				style.setHorizontalAlignment(HorizontalAlignment.LEFT);
+				style.setVerticalAlignment(VerticalAlignment.CENTER);
+				style.setWrapped(false); // Prevent wrapping
+				style.setFillForegroundColor(IndexedColors.LIGHT_BLUE.getIndex());
+
+				WriteFont font = new WriteFont();
+				font.setBold(true);
+				font.setColor(IndexedColors.WHITE.getIndex());
+				style.setWriteFont(font);
+				return style;
+			}
+
+			@Override
+			protected WriteCellStyle contentCellStyle(CellWriteHandlerContext context) {
+				WriteCellStyle style = new WriteCellStyle();
+				style.setHorizontalAlignment(HorizontalAlignment.LEFT);
+				style.setVerticalAlignment(VerticalAlignment.CENTER);
+				style.setWrapped(true);
+
+				WriteFont font = new WriteFont();
+				font.setBold(false);
+				font.setColor(IndexedColors.BLACK.getIndex());
+				style.setWriteFont(font);
+				return style;
+			}
+		};
 	}
 
 }

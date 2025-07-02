@@ -115,6 +115,49 @@
 			border-radius: 5px;
 		}
 
+		/*  report download */
+		.report-download {
+			background-color: #ffffff;
+			padding: 20px;
+			margin-bottom: 20px;
+			border-radius: 10px;
+			box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+		}
+
+		.report-download h3 {
+			margin-bottom: 15px;
+			color: #333;
+			text-align: center;
+			font-size: 20px;
+		}
+
+		.report-controls {
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			gap: 10px;
+		}
+
+		.report-controls select,
+		.report-controls button {
+			padding: 8px 12px;
+			border-radius: 5px;
+			border: 1px solid #ccc;
+			font-size: 14px;
+		}
+
+		.report-controls button {
+			background-color: #007bff;
+			color: white;
+			cursor: pointer;
+			transition: 0.3s;
+		}
+
+		.report-controls button:hover {
+			background-color: #0056b3;
+		}
+
+		/* .maintenance-table */
 		.maintenance-table {
 			border-radius: 10px;
 			overflow: hidden;
@@ -195,6 +238,18 @@
 
 	<div class="log-download" id="log-download">
 		<p>Loading log download section...</p>
+	</div>
+	<div class="report-download" id="report-download">
+		<h3>Download Monthly Report</h3>
+		<div class="report-controls">
+			<select id="report-year">
+				<!-- Year options populated via JS -->
+			</select>
+			<select id="report-month">
+				<!-- Month options populated via JS -->
+			</select>
+			<button onclick="getMonthlyReport()">Get Report</button>
+		</div>
 	</div>
 	<div class="maintenance-status" id="maintenance-status">
 		<p>Loading maintenance tasks...</p>
@@ -330,6 +385,64 @@
 				.catch(err => {
 					console.error("Error:", err);
 					alert("Failed to mark as complete.");
+				});
+		}
+
+		// REPORTS
+		// Populate year dropdown with current year and previous 5
+		const currentYear = new Date().getFullYear();
+		const yearSelect = document.getElementById('report-year');
+		for (let y = currentYear; y >= currentYear - 5; y--) {
+			const opt = document.createElement('option');
+			opt.value = y;
+			opt.textContent = y;
+			yearSelect.appendChild(opt);
+		}
+		// Populate month dropdown (01 to 12)
+		
+		const monthSelect = document.getElementById('report-month');
+		const monthNames = [
+		  "January", "February", "March", "April", "May", "June",
+		  "July", "August", "September", "October", "November", "December"
+		];
+		
+		monthNames.forEach((month, index) => {
+		  const option = document.createElement("option");
+		  option.value = (index + 1).toString().padStart(2, '0'); // value = "01", "02", etc.
+		  option.textContent = month; // visible text = "January", etc.
+		  monthSelect.appendChild(option);
+		});
+		// Call API to download report
+		function getMonthlyReport() {
+			const year = document.getElementById('report-year').value;
+			const month = document.getElementById('report-month').value;
+
+			if (!year || !month) {
+				alert("Please select both year and month.");
+				return;
+			}
+
+			const apiUrl = `/maintenance/download-maintenance-tasks?projectName=${encodeURIComponent(projectName)}&year=${year}&month=${month}`;
+
+			const monthNames = [
+			  "January", "February", "March", "April", "May", "June",
+			  "July", "August", "September", "October", "November", "December"
+			];
+			
+			const monthIndex = parseInt(month) - 1;
+			const monthName = monthNames[monthIndex];
+			
+			fetch(apiUrl)
+				.then(res => res.blob())
+				.then(blob => {
+					const link = document.createElement('a');
+					link.href = URL.createObjectURL(blob);
+					link.download = `Maintenance_Report_${projectName}_${year}_${monthName}.xlsx`;
+					link.click();
+				})
+				.catch(err => {
+					console.error("Error downloading report:", err);
+					alert("Failed to download report.");
 				});
 		}
 

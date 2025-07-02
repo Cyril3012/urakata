@@ -1,5 +1,6 @@
 package com.urakata.controller;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -18,6 +19,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.urakata.dto.MaintenanceCompleteRequestDto;
 import com.urakata.dto.MaintenanceTaskDto;
 import com.urakata.service.IMaintenanceService;
+
+import jakarta.servlet.http.HttpServletResponse;
 
 @RestController
 @RequestMapping("/maintenance")
@@ -100,4 +103,13 @@ public class MaintenanceController {
 		else
 			return result;
 	}
+
+	@GetMapping("/download-maintenance-tasks")
+	public void downloadMaintenanceTasksByFilter(@RequestParam String projectName, @RequestParam int year,
+			@RequestParam int month, HttpServletResponse response) throws IOException {
+		response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+		response.setHeader("Content-Disposition", "attachment; filename=MaintenanceTasks.xlsx");
+		maintenanceService.exportFilteredTasksToExcel(projectName, year, month, response);
+	}
+
 }
