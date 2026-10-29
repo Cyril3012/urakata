@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.file.Paths;
 import java.time.LocalDate;
@@ -42,8 +43,9 @@ public class PortMonitoringServiceImpl implements IPortMonitoringService {
 	IServerDetailsRepository serverDetailsRepository;
 
 	private final List<ServerPortStatusRespDto> tempServerPortStatuses = new ArrayList<>();
-	private final List<ServerPortStatusRespDto> serverPortStatuses = new ArrayList<>();
-
+	// private final List<ServerPortStatusRespDto> serverPortStatuses = new
+	// ArrayList<>();
+	private volatile List<ServerPortStatusRespDto> serverPortStatuses = List.of();
 	private final List<SystemUsageDto> tempServerUtilization = new ArrayList<>();
 	private final List<SystemUsageDto> serverUtilization = new ArrayList<>();
 
@@ -110,55 +112,118 @@ public class PortMonitoringServiceImpl implements IPortMonitoringService {
 		return serverUtilization;
 	}
 
-	// Scheduled task to monitor ports of each server
-	@Scheduled(fixedRate = 10000) // Every 10 seconds
+	@Scheduled(fixedRate = 10000, initialDelay = 0)
 	public void monitorPorts() {
-		List<ServerDetails> allServerDetails = serverDetailsRepository.findAll();
-		tempServerPortStatuses.clear(); // Clear previous statuses
-		for (ServerDetails serverDetail : allServerDetails) {
 
-			ServerPortStatusRespDto porjectServiceStatus = new ServerPortStatusRespDto();
+		List<ServerPortStatusRespDto> updatedStatuses = new ArrayList<>();
 
-			porjectServiceStatus.setServerIp(serverDetail.getServerIp());
-			porjectServiceStatus.setServerName(serverDetail.getServerName());
+		try {
+			List<ServerDetails> allServerDetails = serverDetailsRepository.findAll();
 
-			// Ensure the list is initialized before adding elements
-			if (porjectServiceStatus.getServerPortList() == null) {
-				porjectServiceStatus.setServerPortList(new ArrayList<>()); // Initialize list
-			}
-			if (serverDetail.getServices() != null || !serverDetail.getServices().isEmpty()) {
-				for (ServiceDto ports : serverDetail.getServices()) {
-					String status = checkPortStatus(serverDetail.getServerIp(), ports.getPort());
-					ServerPort serverPortStatus = new ServerPort();
-					serverPortStatus.setServiceName(ports.getName());
-					serverPortStatus.setPort(ports.getPort());
-					serverPortStatus.setStatus(status);
+			for (ServerDetails serverDetail : allServerDetails) {
 
-					// Add serverPortStatus to the list
-					porjectServiceStatus.getServerPortList().add(serverPortStatus);
+				ServerPortStatusRespDto projectStatus = new ServerPortStatusRespDto();
+
+				projectStatus.setProjectTag(serverDetail.getProjectTag());
+				projectStatus.setServerIp(serverDetail.getServerIp());
+				projectStatus.setServerName(serverDetail.getServerName());
+				projectStatus.setServerPortList(new ArrayList<>());
+
+				List<ServiceDto> services = serverDetail.getServices();
+
+				if (services != null && !services.isEmpty()) {
+					for (ServiceDto service : services) {
+
+						ServerPort portStatus = new ServerPort();
+
+						portStatus.setServiceName(service.getName());
+						portStatus.setPort(service.getPort());
+
+						String status = checkPortStatus(serverDetail.getServerIp(), service.getPort());
+
+						portStatus.setStatus(status);
+
+						projectStatus.getServerPortList().add(portStatus);
+					}
 				}
 
-				tempServerPortStatuses.add(porjectServiceStatus);
+				// Include the server even when it has no configured services.
+				updatedStatuses.add(projectStatus);
 			}
 
+			// Publish the complete result only after scanning finishes.
+			serverPortStatuses = List.copyOf(updatedStatuses);
+
+			System.out.println("Port monitoring completed. Servers cached: " + serverPortStatuses.size());
+
+		} catch (Exception e) {
+			System.err.println("Port monitoring failed: " + e.getMessage());
+			e.printStackTrace();
 		}
-		serverPortStatuses.clear();
-		serverPortStatuses.addAll(tempServerPortStatuses);
-
 	}
+	// Scheduled task to monitor ports of each server
+	// @Scheduled(fixedRate = 10000) // Every 10 seconds
+//	public void monitorPorts() {
+//		List<ServerDetails> allServerDetails = serverDetailsRepository.findAll();
+//		tempServerPortStatuses.clear(); // Clear previous statuses
+//		for (ServerDetails serverDetail : allServerDetails) {
+//
+//			ServerPortStatusRespDto porjectServiceStatus = new ServerPortStatusRespDto();
+//
+//			porjectServiceStatus.setProjectTag(serverDetail.getProjectTag());
+//			porjectServiceStatus.setServerIp(serverDetail.getServerIp());
+//			porjectServiceStatus.setServerName(serverDetail.getServerName());
+//
+//			// Ensure the list is initialized before adding elements
+//			if (porjectServiceStatus.getServerPortList() == null) {
+//				porjectServiceStatus.setServerPortList(new ArrayList<>()); // Initialize list
+//			}
+//			if (serverDetail.getServices() != null && !serverDetail.getServices().isEmpty()) {
+//				for (ServiceDto ports : serverDetail.getServices()) {
+//					String status = checkPortStatus(serverDetail.getServerIp(), ports.getPort());
+//					ServerPort serverPortStatus = new ServerPort();
+//					serverPortStatus.setServiceName(ports.getName());
+//					serverPortStatus.setPort(ports.getPort());
+//					serverPortStatus.setStatus(status);
+//
+//					// Add serverPortStatus to the list
+//					porjectServiceStatus.getServerPortList().add(serverPortStatus);
+//				}
+//
+//				tempServerPortStatuses.add(porjectServiceStatus);
+//			}
+//
+//		}
+//		serverPortStatuses.clear();
+//		serverPortStatuses.addAll(tempServerPortStatuses);
+//
+//	}
 
+	@Override
+	public List<ServerPortStatusRespDto> getServerPortStatuses() {
+		return serverPortStatuses;
+	}
 	// socket to ping the port of the server
+//	private String checkPortStatus(String serverIp, int port) {
+//		try (Socket socket = new Socket(serverIp, port)) {
+//			return "UP";
+//		} catch (Exception e) {
+//			return "DOWN";
+//		}
+//	}
+
+//	public List<ServerPortStatusRespDto> getServerPortStatuses() {
+//		// monitorPorts();
+//		return serverPortStatuses;
+//	}
 	private String checkPortStatus(String serverIp, int port) {
-		try (Socket socket = new Socket(serverIp, port)) {
+		try (Socket socket = new Socket()) {
+			socket.connect(new InetSocketAddress(serverIp, port), 4000); // Maximum connection wait: 4 seconds
+
 			return "UP";
 		} catch (Exception e) {
 			return "DOWN";
 		}
-	}
-
-	public List<ServerPortStatusRespDto> getServerPortStatuses() {
-		// monitorPorts();
-		return serverPortStatuses;
 	}
 
 	// GET PROJECT DETAILS

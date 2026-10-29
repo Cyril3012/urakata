@@ -59,6 +59,9 @@ public class ServerDetails {
 	@Column(name = "OSTYPE")
 	private String osType;
 
+	@Column(name = "PROJECT_TAG")
+	private String projectTag;
+
 	private static final ObjectMapper objectMapper = new ObjectMapper();
 
 	// Custom Getter for services (JSON to List<ServiceDto>)

@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Log Analysis</title>
+</head>
+<body>
+    <h2 th:text="'Project: ' + ${projectName}"></h2>
+    <p th:text="'ERROR Count: ' + ${errorCount}"></p>
+    <p th:text="'WARN Count: ' + ${warnCount}"></p>
+    <p th:text="'Exception Count: ' + ${exceptionCount}"></p>
+
+    <div th:if="${error}">
+        <p style="color: red;" th:text="${error}"></p>
+    </div>
+</body>
+</html>

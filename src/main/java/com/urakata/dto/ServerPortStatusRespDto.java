@@ -11,6 +11,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class ServerPortStatusRespDto {
 	private String serverName;
+	private String projectTag;
 	private String serverIp;
 	private List<ServerPort> serverPortList;
 

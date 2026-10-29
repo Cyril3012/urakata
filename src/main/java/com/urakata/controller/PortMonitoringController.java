@@ -1,5 +1,7 @@
 package com.urakata.controller;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
 import java.io.IOException;
 import java.util.List;
 
@@ -91,6 +93,42 @@ public class PortMonitoringController {
 		}
 	}
 
+	@GetMapping("/analyzeLog")
+	public String analyzeLogFile(@RequestParam(name = "projectName", required = false) String projectName,
+			Model model) {
+
+		String logFilePath = "C:/opt/ms/logs/ms-chrysalis-authentication/ms-chrysalis-authentication.log"; // You can
+																											// modify
+																											// this
+		int errorCount = 0;
+		int warnCount = 0;
+		int exceptionCount = 0;
+
+		try (BufferedReader br = new BufferedReader(new FileReader(logFilePath))) {
+			String line;
+			while ((line = br.readLine()) != null) {
+				if (line.contains(" ERROR ")) {
+					errorCount++;
+				}
+				if (line.contains(" WARN ")) {
+					warnCount++;
+				}
+				if (line.contains("Exception")) {
+					exceptionCount++;
+				}
+			}
+		} catch (IOException e) {
+			model.addAttribute("error", "Could not read log file: " + e.getMessage());
+		}
+
+		model.addAttribute("projectName", projectName == null ? "Default Project" : projectName);
+		model.addAttribute("errorCount", errorCount);
+		model.addAttribute("warnCount", warnCount);
+		model.addAttribute("exceptionCount", exceptionCount);
+
+		return "analyzeLog"; // maps to analyzeLog.html
+
+	}
 //	@GetMapping("/download")
 //	public void downloadExcel(HttpServletResponse response) throws IOException {
 //		response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");

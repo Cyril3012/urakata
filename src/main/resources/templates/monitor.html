@@ -32,6 +32,29 @@
 			animation: glow 1.5s ease-in-out infinite alternate;
 		}
 
+		#projectFilter {
+			padding: 8px 12px;
+			border-radius: 6px;
+			border: 1px solid #ccc;
+			font-size: 16px;
+			background-color: white;
+			cursor: pointer;
+			margin: 10px 0;
+			transition: all 0.3s ease;
+		}
+		
+		#projectFilter:hover {
+			border-color: #1b6b86;
+			box-shadow: 0 0 5px rgba(27, 107, 134, 0.5);
+		}
+		
+		label[for="projectFilter"] {
+			font-size: 18px;
+			font-weight: bold;
+			color: #1b6b86;
+			margin-right: 8px;
+		}
+		
 		.project-container {
 			display: flex;
 			flex-wrap: wrap;
@@ -104,42 +127,61 @@
 	<script>
 		function fetchProjects() {
 			fetch('./status-data')
-				.then(response => response.json())
-				.then(data => {
-					const container = document.querySelector('.project-container');
-					container.innerHTML = '';
-
-					data.forEach(server => {
-						const hasServices = server.serverPortList && server.serverPortList.length > 0;
-						const overallStatus = hasServices
-							? (server.serverPortList.every(s => s.status === 'UP') ? 'UP' : 'DOWN')
-							: 'NO_SERVICES';
-
-						const projectBox = document.createElement('div');
-						projectBox.className = 'project-box';
-						projectBox.innerHTML = `
-	                        <div class="project-name">${server.serverName}</div>
-	                        <div class="project-status 
-	                            ${overallStatus === 'UP' ? 'status-good' :
-								overallStatus === 'NO_SERVICES' ? 'status-warning' :
-									'status-issue'}">
-	                            ${overallStatus === 'UP' ? 'Everything is Good' :
-								overallStatus === 'NO_SERVICES' ? 'No services found' :
-									'Issue Detected'}
-	                        </div>
-	                    `;
-
-						projectBox.addEventListener('click', () => {
-							const projectName = server.serverName; // Ensure serverName is correctly retrieved
-							localStorage.setItem('selectedProject', projectName); // Store in localStorage (optional)
-							window.location.href = `/monitor/projectStatus?projectName=${encodeURIComponent(projectName)}`; // Redirect with query param
+					.then(response => response.json())
+					.then(data => {
+						const filterValue = document.getElementById('projectFilter').value;
+						const container = document.querySelector('.project-container');
+						container.innerHTML = '';
+			
+						// 🔄 Get all unique project tags to populate dropdown
+						const uniqueTags = Array.from(new Set(data.map(s => s.projectTag || 'Unknown')));
+						const select = document.getElementById('projectFilter');
+			
+						// Only update dropdown if not already populated
+						if (select.options.length <= 1) {
+							uniqueTags.forEach(tag => {
+								const option = document.createElement('option');
+								option.value = tag;
+								option.textContent = tag;
+								select.appendChild(option);
+							});
+						}
+			
+						// 🔍 Filter based on selected tag
+						const filteredData = filterValue === 'ALL'
+							? data
+							: data.filter(server => (server.projectTag || 'Unknown') === filterValue);
+			
+						// 🧱 Render boxes
+						filteredData.forEach(server => {
+							const hasServices = server.serverPortList && server.serverPortList.length > 0;
+							const overallStatus = hasServices
+								? (server.serverPortList.every(s => s.status === 'UP') ? 'UP' : 'DOWN')
+								: 'NO_SERVICES';
+			
+							const projectBox = document.createElement('div');
+							projectBox.className = 'project-box';
+							projectBox.innerHTML = `
+			                    <div class="project-name">${server.serverName}</div>
+			                    <div class="project-status 
+			                        ${overallStatus === 'UP' ? 'status-good' :
+									overallStatus === 'NO_SERVICES' ? 'status-warning' :
+										'status-issue'}">
+			                        ${overallStatus === 'UP' ? 'Everything is Good' :
+									overallStatus === 'NO_SERVICES' ? 'No services found' :
+										'Issue Detected'}
+			                    </div>
+			                `;
+			
+							projectBox.addEventListener('click', () => {
+								window.location.href = `/monitor/projectStatus?projectName=${encodeURIComponent(server.serverName)}`;
+							});
+			
+							container.appendChild(projectBox);
 						});
-
-						container.appendChild(projectBox);
-					});
-				})
-				.catch(error => console.error('Error fetching projects:', error));
-		}
+					})
+					.catch(error => console.error('Error fetching projects:', error));
+			}
 
 		document.addEventListener('DOMContentLoaded', () => {
 			fetchProjects();
@@ -200,6 +242,13 @@
 
 <body>
 	<h1 class="page-title">💡 Urakata - DevOps Monitoring Dashboard</h1>
+	<div style="text-align: center; margin-top: 10px;">
+			<label for="projectFilter"><strong>Filter by Project:</strong></label>
+			<select id="projectFilter" onchange="fetchProjects()">
+				<option value="ALL">ALL</option>
+				<!-- dynamic options inserted by JS -->
+			</select>
+		</div>
 	<div class="project-container">
 	</div>
 </body>

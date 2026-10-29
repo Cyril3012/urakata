@@ -9,11 +9,11 @@
 		<version>3.4.1</version>
 		<relativePath /> <!-- lookup parent from repository -->
 	</parent>
-	<groupId>com.monitor</groupId>
-	<artifactId>monitor</artifactId>
+	<groupId>com.urakata</groupId>
+	<artifactId>urakata</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>monitor</name>
-	<description>Monitoring port</description>
+	<name>Urakata</name>
+	<description>Urakata - DevOps monitoring tool</description>
 	<url />
 	<licenses>
 		<license />
@@ -80,6 +80,7 @@
 		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
+			<version>1.18.36</version>
 			<optional>true</optional>
 		</dependency>
 		<dependency>
